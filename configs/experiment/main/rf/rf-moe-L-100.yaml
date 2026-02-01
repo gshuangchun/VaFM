@@ -1,0 +1,49 @@
+# @package _global_
+
+# Override defaults by taking another config
+defaults:
+  - rfbase-100.yaml
+  - _self_
+
+env:
+  generator_params:
+    variant_preset: "all"
+
+model:
+  _target_: routefinder.models.model.RouteFinderMoE
+  test_batch_size: 16
+  val_batch_size: 16
+  batch_size: 150
+  optimizer_kwargs:
+    lr: 5e-4 # NOTE: we will be using 3e-4 from now on
+    weight_decay: 1e-6
+  lr_scheduler:
+    "MultiStepLR"
+  lr_scheduler_kwargs:
+    milestones: [ 100, 150,200,250 ]
+    gamma: 0.5
+
+  policy:
+    _target_: routefinder.models.baselines.mvmoe.policy.MVMoEPolicy
+    embed_dim: 128
+    init_embedding: # note that we change embeddings compared to MVMoE
+      _target_: routefinder.models.env_embeddings.mtvrp.init.MTVRPInitEmbeddingRouteFinder
+      embed_dim: ${model.policy.embed_dim}
+    context_embedding:
+      _target_: routefinder.models.env_embeddings.mtvrp.context.MTVRPContextEmbeddingRouteFinder
+      embed_dim: ${model.policy.embed_dim}
+    hierarchical_gating: True  # if True, corresponds to MVMoE-L
+
+# Logging: we use Wandb in this case
+logger:
+  wandb:
+    project: "routefinder"
+    tags: ["rf", "moe", "${env.name}"]
+    group: "${env.generator_params.num_loc}-${env.name}"
+    name: "1018-routefinder-vis-fusion-loc-depot-CBLTW-value-xL-orange-01cls-nodeAtt-2dec-avg-lr5-100"
+
+# Easier default under logs/ directory
+callbacks:
+  model_checkpoint:
+    dirpath: logs/${logger.wandb.name}/${now:%Y-%m-%d}_${now:%H-%M-%S}/checkpoints
+    monitor: "val/reward/cvrp100"
