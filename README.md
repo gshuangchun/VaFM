@@ -31,7 +31,7 @@ unzip logs.zip
 ```
 Put them under:
    - ./data/
-   - ./checkpoints/
+   - ./logs/
 
 
 ## Test
